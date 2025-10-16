@@ -1,3 +1,31 @@
+export const runtime = 'edge';
+
+export async function GET(req) {
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers });
+  }
+
+  try {
+    const data = { message: "Your horoscope data..." }; // your existing logic
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { ...headers, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: "Failed to fetch horoscope" }), {
+      status: 500,
+      headers,
+    });
+  }
+}
+
+
 export const dynamic = "force-dynamic"; // ✅ Required for Next.js dynamic routes on Vercel
 
 import { DateTime } from "luxon";
@@ -174,3 +202,4 @@ export async function GET(request) {
     );
   }
 }
+
