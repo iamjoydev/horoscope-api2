@@ -1,4 +1,87 @@
-<iframe 
-  src="https://your-vercel-horoscope-widget.vercel.app/"
-  style="width:100%;max-width:900px;height:1400px;border:none;border-radius:16px;">
-</iframe>
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>আজকের রাশিফল</title>
+  <style>
+    body {
+      font-family: "Noto Sans Bengali", sans-serif;
+      background: #fffaf6;
+      color: #222;
+      margin: 0;
+      padding: 20px;
+      max-width: 800px;
+      margin-inline: auto;
+    }
+    h1 {
+      text-align: center;
+      color: #d97706;
+    }
+    .error {
+      text-align: center;
+      color: #d00;
+      font-weight: bold;
+      margin-top: 30px;
+    }
+    .sign {
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 14px;
+      padding: 16px;
+      margin: 14px 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    .sign h2 {
+      color: #b45309;
+      margin-bottom: 8px;
+    }
+    .sign p {
+      margin: 6px 0;
+    }
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      color: #888;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔮 আজকের রাশিফল</h1>
+  <div id="container">লোড হচ্ছে...</div>
+  <footer>Powered by Horoscope API</footer>
+
+  <script>
+    const API_URL = "https://horoscope-api1.vercel.app/api/horoscope";
+    const container = document.getElementById("container");
+
+    async function loadHoroscope() {
+      try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error("Network response failed");
+        const data = await response.json();
+
+        container.innerHTML = "";
+
+        Object.entries(data.horoscope).forEach(([sign, details]) => {
+          const div = document.createElement("div");
+          div.className = "sign";
+          div.innerHTML = `
+            <h2>${sign}</h2>
+            <p><b>সারসংক্ষেপ:</b> ${details.summary}</p>
+            <p><b>স্বাস্থ্য:</b> ${details.health}</p>
+            <p><b>পরামর্শ:</b> ${details.advice}</p>
+            <p><small>নক্ষত্র: ${details.nakshatra} | তিথি: ${details.tithi}</small></p>
+          `;
+          container.appendChild(div);
+        });
+      } catch (error) {
+        container.innerHTML = `<div class="error">⚠️ নেটওয়ার্ক সমস্যা — পরে আবার চেষ্টা করুন।</div>`;
+      }
+    }
+
+    loadHoroscope();
+  </script>
+</body>
+</html>
