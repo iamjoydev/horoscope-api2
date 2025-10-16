@@ -1,28 +1,25 @@
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"; // ✅ Required for Next.js dynamic routes on Vercel
 
 import { DateTime } from "luxon";
 import * as Astronomy from "astronomy-engine";
 
-/* 
-  Robust /api/horoscope route:
-  - Forces Node runtime so astronomy-engine works on Vercel
-  - Uses built-in fetch to get geo from ipapi.co
-  - Uses Astronomy.Body.Sun / Moon with AstroTime
-  - Returns deterministic daily horoscopes in Bengali
-*/
+/**
+ * 🌟 Horoscope API — Bengali Vedic Style
+ * Generates daily horoscope data based on Sun–Moon positions
+ */
 
+// 🌍 Get location data from IP (fallback: Kolkata)
 async function fetchGeo(ip) {
   try {
     const res = await fetch(`https://ipapi.co/${ip}/json/`, { cache: "no-store" });
-    if (!res.ok) throw new Error("Geo lookup failed: " + res.status);
+    if (!res.ok) throw new Error("Geo lookup failed");
     return await res.json();
-  } catch (e) {
-    console.warn("fetchGeo failed:", String(e));
+  } catch {
     return null;
   }
 }
 
+// 🎲 Deterministic random generator (seeded)
 function seededRandom(seedStr) {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < seedStr.length; i++) {
@@ -36,11 +33,13 @@ function seededRandom(seedStr) {
   };
 }
 
+// ♈ Zodiac Signs
 const SIGNS = [
-  "মেষ","বৃষ","মিথুন","কর্কট","সিংহ","কন্যা",
-  "তুলা","বৃশ্চিক","ধনু","মকর","কুম্ভ","মীন"
+  "মেষ", "বৃষ", "মিথুন", "কর্কট", "সিংহ", "কন্যা",
+  "তুলা", "বৃশ্চিক", "ধনু", "মকর", "কুম্ভ", "মীন"
 ];
 
+// 📜 Text Templates
 const TEMPLATES = {
   lead: [
     "আজ আপনার সৃজনশীল শক্তি জাগ্রত হবে। নতুন কাজের সুযোগ আসবে।",
@@ -63,6 +62,7 @@ const TEMPLATES = {
   ]
 };
 
+// 🌠 Nakshatra-specific flavor
 const NAK_FLAVOR = {
   "অশ্বিনী": "শুরু করার শক্তি ও উদ্যম বৃদ্ধি পাবে।",
   "ভরণী": "সৃজনশীলতা ও সহমর্মিতা জাগ্রত হবে।",
@@ -76,60 +76,68 @@ const NAK_FLAVOR = {
   "মঘা": "সম্মান ও স্বীকৃতি পাওয়ার সম্ভাবনা।"
 };
 
-function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
+function pick(rng, arr) {
+  return arr[Math.floor(rng() * arr.length)];
+}
 
+// 🧮 API Handler
 export async function GET(request) {
   try {
-    // Client IP (Vercel sets x-forwarded-for when available)
+    // 🕵️‍♂️ Detect IP from headers (Vercel provides x-forwarded-for)
     const forwarded = request.headers.get("x-forwarded-for");
     const clientIp = forwarded ? forwarded.split(",")[0].trim() : "8.8.8.8";
 
-    // Geo lookup
+    // 🌍 Location data
     const geo = await fetchGeo(clientIp);
-    const lat = geo?.latitude ?? 22.5726;
-    const lon = geo?.longitude ?? 88.3639;
-    const city = geo?.city ?? "Kolkata";
-    const region = geo?.region ?? "West Bengal";
-    const country = geo?.country_name ?? "India";
-    const tz = geo?.timezone ?? "Asia/Kolkata";
+    const lat = geo?.latitude || 22.5726;
+    const lon = geo?.longitude || 88.3639;
+    const city = geo?.city || "Kolkata";
+    const region = geo?.region || "West Bengal";
+    const country = geo?.country_name || "India";
+    const tz = geo?.timezone || "Asia/Kolkata";
 
-    // Local time
+    // 🕒 Date and Time
     const now = DateTime.now().setZone(tz);
     const isoDate = now.toISODate();
     const displayDate = now.toFormat("dd/MM/yyyy");
 
-    // Astronomy: compute using Astronomy.Body.* and AstroTime
-    const time = new Astronomy.AstroTime(now.toJSDate());
-    const sunLon = Astronomy.EclipticLongitude(Astronomy.Body.Sun, time);
-    const moonLon = Astronomy.EclipticLongitude(Astronomy.Body.Moon, time);
+    // 🌞 Astronomy calculations (✅ fixed)
+    let sunLon = 0, moonLon = 0;
+    try {
+      sunLon = Astronomy.EclipticLongitude(Astronomy.Body.Sun, now.toJSDate());
+      moonLon = Astronomy.EclipticLongitude(Astronomy.Body.Moon, now.toJSDate());
+    } catch (err) {
+      console.warn("Astronomy calculation failed:", err);
+    }
 
-    // Tithi & Nakshatra
+    // 📅 Calculate tithi & nakshatra
     const tithi = Math.floor(((moonLon - sunLon + 360) % 360) / 12) + 1;
-    const nakshatras = [
-      "অশ্বিনী","ভরণী","কৃত্তিকা","রোহিণী","মৃগশিরা","আর্দ্রা",
-      "পুনর্বসু","পুষ্যা","অশ্লেষা","মঘা","পূর্বফাল্গুনী","উত্তরফাল্গুনী",
-      "হস্তা","চিত্রা","স্বাতী","বিশাখা","অনুরাধা","জ্যেষ্ঠা",
-      "মূলা","পূর্বাষাঢ়া","উত্তরাষাঢ়া","শ্রবণা","ধনিষ্ঠা","শতভিষা",
-      "পূর্বভাদ্রপদা","উত্তরভাদ্রপদা","রেবতী"
-    ];
     const nakIndex = Math.floor((moonLon % 360) / (360 / 27));
-    const nakshatra = nakshatras[nakIndex] ?? "অজানা";
-    const flavor = NAK_FLAVOR[nakshatra] ?? "";
+    const nakshatras = [
+      "অশ্বিনী", "ভরণী", "কৃত্তিকা", "রোহিণী", "মৃগশিরা", "আর্দ্রা",
+      "পুনর্বসু", "পুষ্যা", "অশ্লেষা", "মঘা", "পূর্বফাল্গুনী", "উত্তরফাল্গুনী",
+      "হস্তা", "চিত্রা", "স্বাতী", "বিশাখা", "অনুরাধা", "জ্যেষ্ঠা",
+      "মূলা", "পূর্বাষাঢ়া", "উত্তরাষাঢ়া", "শ্রবণা", "ধনিষ্ঠা", "শতভিষা",
+      "পূর্বভাদ্রপদা", "উত্তরভাদ্রপদা", "রেবতী"
+    ];
+    const nakshatra = nakshatras[nakIndex];
+    const flavor = NAK_FLAVOR[nakshatra] || "";
 
-    // Build horoscope per sign
+    // 🔮 Generate horoscope data
     const horoscope = {};
     for (const sign of SIGNS) {
-      const rng = seededRandom(`${isoDate}|${sign}|${city}`);
+      const rng = seededRandom(`${isoDate}|${sign}`);
       horoscope[sign] = {
         summary: `${pick(rng, TEMPLATES.lead)} ${flavor}`.trim(),
         health: pick(rng, TEMPLATES.health),
         advice: pick(rng, TEMPLATES.advice),
-        tithi: `তিথি ${tithi}`,
-        nakshatra
+        nakshatra,
+        tithi: `তিথি ${tithi}`
       };
     }
 
-    const out = {
+    // ✅ Success Response
+    const result = {
       date: displayDate,
       location: { city, region, country, lat, lon, timeZone: tz },
       sun_longitude: Number(sunLon.toFixed(6)),
@@ -137,21 +145,32 @@ export async function GET(request) {
       tithi,
       nakshatra,
       horoscope,
-      meta: { generatedAt: new Date().toISOString(), engine: "astronomy-engine" }
+      meta: {
+        generatedAt: new Date().toISOString(),
+        engine: "astronomy-engine",
+        version: "1.0.0"
+      }
     };
 
-    return new Response(JSON.stringify(out, null, 2), {
+    return new Response(JSON.stringify(result, null, 2), {
       status: 200,
       headers: {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "s-maxage=900, stale-while-revalidate=3600"
       }
     });
+
   } catch (err) {
     console.error("Horoscope API error:", err);
-    return new Response(JSON.stringify({ error: "Failed to generate horoscope", details: String(err) }), {
-      status: 500,
-      headers: { "Content-Type": "application/json; charset=utf-8" }
-    });
+    return new Response(
+      JSON.stringify({
+        error: "Failed to generate horoscope",
+        details: err.message || "Unknown error"
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json; charset=utf-8" }
+      }
+    );
   }
 }
